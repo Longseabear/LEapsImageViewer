@@ -1,0 +1,31 @@
+{
+  "kind": "bayer-frame",
+  "width": 500,
+  "height": 375,
+  "storageDtype": "uint16",
+  "endianness": "little",
+  "bitDepth": 12,
+  "blackLevel": 0,
+  "whiteLevel": 4095,
+  "rowStrideBytes": 1000,
+  "bayerPattern": "RGGB",
+  "source": {
+    "type": "synthetic-public-fixture",
+    "path": "data/samples/synthetic_iq_chart.png",
+    "description": "Deterministic synthetic image-quality chart generated in-repo. No third-party image content."
+  },
+  "artifacts": {
+    "raw": "data/derived/synthetic_iq_chart_rggb_12bit.raw",
+    "preview": "data/derived/synthetic_iq_chart_rggb_12bit_cfa_preview.png"
+  },
+  "generation": {
+    "script": "tools/make_synthetic_chart_sample.mjs",
+    "license": "CC0-1.0"
+  },
+  "cfaSiteCounts": {
+    "R": 47000,
+    "Gr": 47000,
+    "Gb": 46750,
+    "B": 46750
+  }
+}

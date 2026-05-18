@@ -1,0 +1,31 @@
+{
+  "kind": "bayer-frame",
+  "width": 1024,
+  "height": 512,
+  "storageDtype": "uint16",
+  "bitDepth": 12,
+  "endianness": "little",
+  "bayerPattern": "RGGB",
+  "blackLevel": 0,
+  "whiteLevel": 4095,
+  "rowStrideBytes": 2048,
+  "source": {
+    "path": "data\\samples\\aerodynamics_workshop_1k.hdr",
+    "type": "radiance-hdr-rgb"
+  },
+  "artifacts": {
+    "raw": "data\\derived\\aerodynamics_workshop_rggb_12bit.raw",
+    "preview": "data\\derived\\aerodynamics_workshop_rggb_12bit_cfa_preview.png"
+  },
+  "conversion": {
+    "method": "select-cfa-site-from-rgb",
+    "clipPercentile": 99.9,
+    "hdrScaleValue": 255.0
+  },
+  "cfaSiteCounts": {
+    "R": 131072,
+    "Gr": 131072,
+    "Gb": 131072,
+    "B": 131072
+  }
+}

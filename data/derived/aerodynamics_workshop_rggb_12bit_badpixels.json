@@ -1,0 +1,78 @@
+{
+  "kind": "bayer-frame",
+  "width": 1024,
+  "height": 512,
+  "storageDtype": "uint16",
+  "bitDepth": 12,
+  "endianness": "little",
+  "bayerPattern": "RGGB",
+  "blackLevel": 0,
+  "whiteLevel": 4095,
+  "rowStrideBytes": 2048,
+  "source": {
+    "path": "data\\derived\\aerodynamics_workshop_rggb_12bit.raw",
+    "type": "synthetic-bad-pixel-variant"
+  },
+  "artifacts": {
+    "raw": "data\\derived\\aerodynamics_workshop_rggb_12bit_badpixels.raw",
+    "preview": "data\\derived\\aerodynamics_workshop_rggb_12bit_cfa_preview.png"
+  },
+  "conversion": {
+    "method": "select-cfa-site-from-rgb",
+    "clipPercentile": 99.9,
+    "hdrScaleValue": 255
+  },
+  "cfaSiteCounts": {
+    "R": 131072,
+    "Gr": 131072,
+    "Gb": 131072,
+    "B": 131072
+  },
+  "defects": {
+    "injectedBadPixels": [
+      {
+        "x": 144,
+        "y": 78,
+        "type": "hot",
+        "value": 4095
+      },
+      {
+        "x": 318,
+        "y": 214,
+        "type": "hot",
+        "value": 4095
+      },
+      {
+        "x": 755,
+        "y": 195,
+        "type": "hot",
+        "value": 4095
+      },
+      {
+        "x": 910,
+        "y": 340,
+        "type": "hot",
+        "value": 4095
+      },
+      {
+        "x": 224,
+        "y": 390,
+        "type": "dead",
+        "value": 0
+      },
+      {
+        "x": 612,
+        "y": 92,
+        "type": "dead",
+        "value": 0
+      },
+      {
+        "x": 870,
+        "y": 122,
+        "type": "dead",
+        "value": 0
+      }
+    ],
+    "method": "deterministic-coordinate-overwrite"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "leaps-image-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "sample:chart": "node tools/make_synthetic_chart_sample.mjs",
+    "sample:badpixels": "node tools/make_bad_pixel_sample.mjs",
+    "sample:videos": "py tools/make_video_compare_samples.py",
+    "verify:hdr": "node tools/verify_hdr_sample.mjs",
+    "verify:bayer": "node tools/verify_bayer_sample.mjs"
+  },
+  "dependencies": {
+    "lucide": "^0.468.0"
+  },
+  "devDependencies": {
+    "vite": "^8.0.13"
+  }
+}
