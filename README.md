@@ -187,6 +187,7 @@ Run a local MCP server for tool-call based agents:
 
 ```bash
 npm run mcp:install-browsers
+npm run bridge
 npm run mcp
 ```
 
@@ -195,6 +196,8 @@ The repository includes a project-local `.mcp.json`; keep this registration loca
 The server exposes tools such as `viewer_open_sample`, `viewer_observe`, `viewer_get_state`, `viewer_get_pixel`, `viewer_get_roi_stats`, `viewer_select_region`, `viewer_save_current_region`, `viewer_add_marker`, `viewer_screenshot`, and compare-loss helpers.
 
 The intended interaction loop is `open -> observe -> manipulate -> observe -> query -> annotate/save`. `viewer_observe` returns session id, visible image rect, selected ROI stats/loss, and recent operation history so an agent can keep working without a human in the loop.
+
+Default transport is now `MCP -> WebSocket bridge -> viewer runtime`. The bridge avoids relying on browser UI automation for normal tool operation; Playwright remains as a fallback when no viewer tab is connected.
 
 Smoke test it with:
 
@@ -272,6 +275,9 @@ tools/
 
 mcp/
   server.mjs              MCP stdio server for model-agent tool calls
+
+bridge/
+  server.mjs              WebSocket bridge between MCP tools and viewer runtime
 
 .mcp.json                 project-local MCP registration
 

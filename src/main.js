@@ -887,6 +887,7 @@ window.LEapsViewer = {
 
 syncCompareControls();
 syncSavedRegionList();
+connectViewerBridge();
 openSampleBayer().catch(handleLoadError);
 
 async function openFiles(files) {
@@ -4754,6 +4755,117 @@ function observeViewer(options = {}) {
   }
 
   return observation;
+}
+
+function connectViewerBridge() {
+  const bridgeUrl = bridgeUrlFromLocation();
+  if (!bridgeUrl || !("WebSocket" in window)) return;
+
+  let socket = null;
+  let reconnectTimer = null;
+  let reconnectDelay = 500;
+  const viewerId = `viewer-${Math.random().toString(36).slice(2, 10)}`;
+
+  const connect = () => {
+    socket = new WebSocket(bridgeUrl);
+
+    socket.addEventListener("open", () => {
+      reconnectDelay = 500;
+      socket.send(JSON.stringify({
+        type: "register-viewer",
+        viewerId,
+        info: {
+          url: window.location.href,
+          title: document.title,
+          userAgent: navigator.userAgent,
+        },
+      }));
+    });
+
+    socket.addEventListener("message", (event) => {
+      handleBridgeMessage(socket, event.data).catch((error) => {
+        safeBridgeSend(socket, {
+          type: "response",
+          id: tryParseBridgeId(event.data),
+          ok: false,
+          error: error.message,
+        });
+      });
+    });
+
+    socket.addEventListener("close", () => {
+      reconnectTimer = window.setTimeout(connect, reconnectDelay);
+      reconnectDelay = Math.min(8000, reconnectDelay * 1.6);
+    });
+  };
+
+  window.addEventListener("beforeunload", () => {
+    if (reconnectTimer) window.clearTimeout(reconnectTimer);
+    socket?.close();
+  });
+  connect();
+}
+
+function bridgeUrlFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const explicit = params.get("bridge");
+  if (explicit === "off") return "";
+  if (explicit) return explicit;
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.hostname || "127.0.0.1"}:8787`;
+}
+
+async function handleBridgeMessage(socket, raw) {
+  const message = JSON.parse(String(raw));
+  if (message.type !== "command") return;
+  try {
+    const result = await dispatchBridgeCommand(message.command);
+    safeBridgeSend(socket, {
+      type: "response",
+      id: message.id,
+      ok: true,
+      result,
+    });
+  } catch (error) {
+    safeBridgeSend(socket, {
+      type: "response",
+      id: message.id,
+      ok: false,
+      error: error.message,
+    });
+  }
+}
+
+async function dispatchBridgeCommand(command = {}) {
+  const scope = command.scope || "viewer";
+  const method = command.method;
+  const argument = command.argument;
+  if (scope === "compare") {
+    const api = window.LEapsViewer.compare;
+    if (!api || typeof api[method] !== "function") {
+      throw new Error(`window.LEapsViewer.compare.${method} is not available.`);
+    }
+    return api[method](argument);
+  }
+  const api = window.LEapsViewer;
+  if (!api || typeof api[method] !== "function") {
+    throw new Error(`window.LEapsViewer.${method} is not available.`);
+  }
+  return api[method](argument);
+}
+
+function safeBridgeSend(socket, message) {
+  if (socket?.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(message));
+  }
+}
+
+function tryParseBridgeId(raw) {
+  try {
+    return JSON.parse(String(raw)).id || null;
+  } catch {
+    return null;
+  }
 }
 
 function getVisibleImageRect() {

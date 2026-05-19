@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "bridge": "node bridge/server.mjs",
     "mcp": "node mcp/server.mjs",
     "mcp:install-browsers": "playwright install chromium",
     "sample:chart": "node tools/make_synthetic_chart_sample.mjs",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "playwright": "^1.60.0",
-    "vite": "^8.0.13"
+    "vite": "^8.0.13",
+    "ws": "^8.20.1"
   }
 }

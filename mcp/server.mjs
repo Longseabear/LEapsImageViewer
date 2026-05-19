@@ -1,19 +1,29 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { chromium } from "playwright";
+import WebSocket from "ws";
 import * as z from "zod/v4";
 
 const DEFAULT_VIEWER_URL = "http://127.0.0.1:5173/";
+const DEFAULT_BRIDGE_URL = "ws://127.0.0.1:8787";
 const viewerUrl = process.env.LEAPS_VIEWER_URL || DEFAULT_VIEWER_URL;
+const bridgeUrl = process.env.LEAPS_BRIDGE_URL || DEFAULT_BRIDGE_URL;
+const useBridge = process.env.LEAPS_MCP_TRANSPORT !== "playwright";
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const sessionId = `leaps-viewer-${Date.now().toString(36)}`;
 const operationHistory = [];
 
 let viteProcess = null;
+let bridgeProcess = null;
+let bridgeSocket = null;
+let bridgeRegistered = false;
+let bridgeRequestCounter = 0;
+const bridgePending = new Map();
 let browser = null;
 let page = null;
 
@@ -266,8 +276,28 @@ async function openSample(sample) {
 }
 
 async function callViewer(method, argument, options = {}) {
+  const result = useBridge
+    ? await sendBridgeCommand("viewer", method, argument)
+    : await callViewerWithPlaywright(method, argument);
+  if (options.record !== false) {
+    recordOperation(`viewer.${method}`, argument, summarizeResult(result));
+  }
+  return result;
+}
+
+async function callCompare(method, argument, options = {}) {
+  const result = useBridge
+    ? await sendBridgeCommand("compare", method, argument)
+    : await callCompareWithPlaywright(method, argument);
+  if (options.record !== false) {
+    recordOperation(`compare.${method}`, argument, summarizeResult(result));
+  }
+  return result;
+}
+
+async function callViewerWithPlaywright(method, argument) {
   const activePage = await ensurePage();
-  const result = await activePage.evaluate(
+  return activePage.evaluate(
     async ({ methodName, value }) => {
       const api = window.LEapsViewer;
       if (!api || typeof api[methodName] !== "function") {
@@ -277,15 +307,11 @@ async function callViewer(method, argument, options = {}) {
     },
     { methodName: method, value: argument },
   );
-  if (options.record !== false) {
-    recordOperation(`viewer.${method}`, argument, summarizeResult(result));
-  }
-  return result;
 }
 
-async function callCompare(method, argument, options = {}) {
+async function callCompareWithPlaywright(method, argument) {
   const activePage = await ensurePage();
-  const result = await activePage.evaluate(
+  return activePage.evaluate(
     async ({ methodName, value }) => {
       const api = window.LEapsViewer?.compare;
       if (!api || typeof api[methodName] !== "function") {
@@ -295,10 +321,142 @@ async function callCompare(method, argument, options = {}) {
     },
     { methodName: method, value: argument },
   );
-  if (options.record !== false) {
-    recordOperation(`compare.${method}`, argument, summarizeResult(result));
+}
+
+async function sendBridgeCommand(scope, method, argument) {
+  const socket = await ensureBridgeSocket();
+  return sendBridgeCommandRaw(socket, scope, method, argument);
+}
+
+async function sendBridgeCommandRaw(socket, scope, method, argument) {
+  const id = `cmd-${++bridgeRequestCounter}-${randomUUID()}`;
+  const response = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      bridgePending.delete(id);
+      reject(new Error(`Bridge command timed out: ${scope}.${method}`));
+    }, 20000);
+    bridgePending.set(id, { resolve, reject, timer });
+    socket.send(JSON.stringify({
+      type: "command",
+      id,
+      command: { scope, method, argument },
+    }));
+  });
+  if (!response.ok) {
+    throw new Error(response.error || `Bridge command failed: ${scope}.${method}`);
   }
-  return result;
+  return response.result;
+}
+
+async function ensureBridgeSocket() {
+  await ensureViewerServer();
+  await ensureBridgeServer();
+  if (bridgeSocket?.readyState === WebSocket.OPEN && bridgeRegistered) return bridgeSocket;
+
+  bridgeSocket = new WebSocket(bridgeUrl);
+  bridgeRegistered = false;
+  bridgeSocket.on("message", (data) => {
+    const message = JSON.parse(String(data));
+    if (message.type === "registered") {
+      bridgeRegistered = true;
+      return;
+    }
+    if (message.type === "response") {
+      const request = bridgePending.get(message.id);
+      if (!request) return;
+      clearTimeout(request.timer);
+      bridgePending.delete(message.id);
+      request.resolve(message);
+    }
+  });
+  bridgeSocket.on("close", () => {
+    bridgeRegistered = false;
+  });
+  await new Promise((resolve, reject) => {
+    bridgeSocket.once("open", resolve);
+    bridgeSocket.once("error", reject);
+  });
+  bridgeSocket.send(JSON.stringify({
+    type: "register-mcp",
+    clientId: sessionId,
+  }));
+
+  const deadline = Date.now() + 10000;
+  while (!bridgeRegistered && Date.now() < deadline) {
+    await delay(50);
+  }
+  if (!bridgeRegistered) throw new Error("MCP bridge registration timed out.");
+
+  await ensureBridgeViewer();
+  return bridgeSocket;
+}
+
+async function ensureBridgeServer() {
+  if (await bridgeAvailable()) return;
+  if (!bridgeProcess) {
+    const nodeCommand = process.execPath;
+    bridgeProcess = spawn(nodeCommand, ["bridge/server.mjs"], {
+      cwd: projectRoot,
+      stdio: ["ignore", "ignore", "pipe"],
+      env: { ...process.env },
+    });
+    bridgeProcess.stderr.on("data", (chunk) => {
+      process.stderr.write(`[viewer-bridge] ${chunk}`);
+    });
+    bridgeProcess.on("exit", (code) => {
+      bridgeProcess = null;
+      if (code && code !== 0) process.stderr.write(`[viewer-bridge] exited with code ${code}\n`);
+    });
+  }
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    if (await bridgeAvailable()) return;
+    await delay(100);
+  }
+  throw new Error(`Bridge server did not become available at ${bridgeUrl}`);
+}
+
+async function bridgeAvailable() {
+  const probe = new WebSocket(bridgeUrl);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      probe.close();
+      resolve(false);
+    }, 500);
+    probe.once("open", () => {
+      clearTimeout(timer);
+      probe.close();
+      resolve(true);
+    });
+    probe.once("error", () => {
+      clearTimeout(timer);
+      resolve(false);
+    });
+  });
+}
+
+async function ensureBridgeViewer() {
+  const initial = await sendBridgeCommandIfViewer("viewer", "getState");
+  if (initial.ok) return;
+
+  await ensurePage();
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const result = await sendBridgeCommandIfViewer("viewer", "getState");
+    if (result.ok) return;
+    await delay(250);
+  }
+  throw new Error("No viewer connected to bridge.");
+}
+
+async function sendBridgeCommandIfViewer(scope, method, argument) {
+  try {
+    const result = await sendBridgeCommandRaw(bridgeSocket, scope, method, argument);
+    return { ok: true, result };
+  } catch (error) {
+    if (/No viewer is connected/i.test(error.message)) return { ok: false };
+    throw error;
+  }
 }
 
 async function ensurePage() {
@@ -438,8 +596,12 @@ function cleanUndefined(value) {
 }
 
 async function shutdown() {
+  bridgeSocket?.close();
   await page?.close().catch(() => {});
   await browser?.close().catch(() => {});
+  if (bridgeProcess) {
+    bridgeProcess.kill();
+  }
   if (viteProcess) {
     viteProcess.kill();
   }
@@ -454,4 +616,4 @@ process.on("SIGTERM", () => {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-process.stderr.write(`LEaps Image Viewer MCP server ready for ${viewerUrl}\n`);
+process.stderr.write(`LEaps Image Viewer MCP server ready for ${viewerUrl} via ${useBridge ? bridgeUrl : "playwright"}\n`);

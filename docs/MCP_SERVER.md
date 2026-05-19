@@ -1,8 +1,14 @@
 # LEaps Image Viewer MCP Server
 
-This repository includes a local MCP server that lets model agents drive the browser viewer through tool calls.
+This repository includes a local MCP server that lets model agents drive the viewer through tool calls.
 
-The server launches or reuses the Vite viewer at `http://127.0.0.1:5173/`, opens it in a Playwright browser, and calls the browser-global `window.LEapsViewer` API.
+The preferred path is:
+
+```text
+agent -> MCP tools -> WebSocket bridge -> viewer runtime
+```
+
+The viewer connects to the bridge and executes commands through `window.LEapsViewer`. This keeps the agent interaction focused on tools and viewer state instead of browser UI automation. If no viewer is connected, the MCP server can still open a headless Playwright page as a fallback so automation keeps working.
 
 ## Run
 
@@ -11,6 +17,7 @@ This project uses a project-local `.mcp.json` in the repository root. Do not reg
 ```bash
 npm ci
 npm run mcp:install-browsers
+npm run bridge
 npm run mcp
 ```
 
@@ -23,7 +30,8 @@ Project-local MCP clients can launch the server from `.mcp.json`:
       "command": "node",
       "args": ["mcp/server.mjs"],
       "env": {
-        "LEAPS_VIEWER_URL": "http://127.0.0.1:5173/"
+        "LEAPS_VIEWER_URL": "http://127.0.0.1:5173/",
+        "LEAPS_BRIDGE_URL": "ws://127.0.0.1:8787"
       }
     }
   }
@@ -38,7 +46,20 @@ If the viewer is already running somewhere else, set:
 LEAPS_VIEWER_URL=http://127.0.0.1:5173/ npm run mcp
 ```
 
+If the bridge is already running somewhere else, set:
+
+```bash
+LEAPS_BRIDGE_URL=ws://127.0.0.1:8787 npm run mcp
+```
+
 Set `LEAPS_VIEWER_HEADLESS=0` to make the Playwright browser visible while the agent works.
+Set `LEAPS_MCP_TRANSPORT=playwright` to bypass the bridge and use the older direct Playwright transport.
+
+## Runtime Modes
+
+- **Bridge mode default**: MCP sends commands to `bridge/server.mjs`, and an open viewer tab handles them. This is the intended agent-tool loop.
+- **Fallback mode**: if no viewer tab is connected, MCP opens a headless viewer page so tool calls still work.
+- **Playwright transport mode**: set `LEAPS_MCP_TRANSPORT=playwright` when you explicitly want MCP to call the browser page directly.
 
 ## Tools
 

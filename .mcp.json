@@ -4,7 +4,8 @@
       "command": "node",
       "args": ["mcp/server.mjs"],
       "env": {
-        "LEAPS_VIEWER_URL": "http://127.0.0.1:5173/"
+        "LEAPS_VIEWER_URL": "http://127.0.0.1:5173/",
+        "LEAPS_BRIDGE_URL": "ws://127.0.0.1:8787"
       }
     }
   }
