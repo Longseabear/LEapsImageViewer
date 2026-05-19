@@ -2,6 +2,8 @@
 
 This repository includes a local MCP server that lets model agents drive the viewer through tool calls.
 
+For agent behavior and task patterns, read `docs/AGENT_OPERATION_GUIDE.md`.
+
 The preferred path is:
 
 ```text
@@ -202,6 +204,8 @@ Report metric, domain, coordinates, and whether the loss is localized or broad.
 - `operationHistory`: recent MCP actions and summaries.
 
 Use `includeScreenshot: true` only when the model needs visual inspection. Pixel, ROI, and compare queries are more deterministic and cheaper than screenshot-only reasoning.
+
+For fuller task guidance, including Bayer/raw analysis, compare analysis, screenshot use, and recovery patterns, see `docs/AGENT_OPERATION_GUIDE.md`.
 
 ## Verify
 

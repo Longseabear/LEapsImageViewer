@@ -206,6 +206,7 @@ npm run verify:mcp
 ```
 
 See `docs/MCP_SERVER.md` for client configuration and the full tool list.
+See `docs/AGENT_OPERATION_GUIDE.md` for the recommended agent loop and task patterns.
 
 ### Agent Usage Guide
 
@@ -254,6 +255,15 @@ When prompting an agent, ask it to alternate action and observation:
 Open the chart sample. Observe the viewer. Change to CFA false color, find a useful ROI, observe again, then report ROI stats and save the ROI with a short description. Use viewer_observe after each visual manipulation.
 ```
 
+Operational rules for agents:
+
+- Treat the viewer as a persistent workbench, not a stateless function call.
+- Call `viewer_observe` after opening, view-mode changes, ROI changes, zoom/focus changes, and compare-mode changes.
+- Prefer deterministic tools such as `viewer_get_pixel`, `viewer_get_roi_stats`, and `viewer_compare_get_roi_loss` over screenshot-only reasoning.
+- Use screenshots for visual grounding, not as the source of truth for Bayer values or loss metrics.
+- Save any ROI used in a conclusion with `viewer_save_current_region` and a useful description.
+- Report coordinates in image pixels.
+
 ## Project Layout
 
 ```text
@@ -286,6 +296,7 @@ data/
   derived/                generated Bayer raws, sidecars, previews, and demo videos
 
 docs/
+  AGENT_OPERATION_GUIDE.md agent loop and usage patterns
   MCP_SERVER.md           MCP server setup and tool list
   PLUGIN_REGISTRATION.md  plugin authoring guide for humans and agents
 ```
