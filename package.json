@@ -6,16 +6,21 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "mcp": "node mcp/server.mjs",
+    "mcp:install-browsers": "playwright install chromium",
     "sample:chart": "node tools/make_synthetic_chart_sample.mjs",
     "sample:badpixels": "node tools/make_bad_pixel_sample.mjs",
     "sample:videos": "py tools/make_video_compare_samples.py",
     "verify:hdr": "node tools/verify_hdr_sample.mjs",
-    "verify:bayer": "node tools/verify_bayer_sample.mjs"
+    "verify:bayer": "node tools/verify_bayer_sample.mjs",
+    "verify:mcp": "node tools/verify_mcp_server.mjs"
   },
   "dependencies": {
     "lucide": "^0.468.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "playwright": "^1.60.0",
     "vite": "^8.0.13"
   }
 }

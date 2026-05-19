@@ -14,6 +14,7 @@ This project is not a generic gallery and does not need 3D, video, volume render
 - Compare RGGB, BGGR, GRBG, and GBRG interpretations.
 - Generate deterministic previews, histograms, ROI stats, and overlays that an agent can query.
 - Provide stable browser selectors and a stable JavaScript API for automation.
+- Provide an MCP server wrapper so model agents can use the viewer through explicit tool calls.
 
 ## Coordinate Rules
 
@@ -138,6 +139,7 @@ Every interactive control should also have a stable `data-agent-action` or `data
 ## Related Docs
 
 - `docs/PLUGIN_REGISTRATION.md`: how to define, register, expose, and validate image-analysis plugins for human and agent use.
+- `docs/MCP_SERVER.md`: how to run the local MCP server and which viewer tools it exposes.
 
 ## Sample Data Layout
 

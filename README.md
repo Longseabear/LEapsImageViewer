@@ -10,6 +10,7 @@ Agent-friendly 2D image viewer for HDR, Bayer raw frames, same-position source c
 - Shows raw mosaic, RGB CFA false color, demosaic preview, and per-plane views.
 - Provides input bit depth, brightness, gamma, and white-balance controls.
 - Exposes pixel, patch, ROI, and per-CFA-plane raw statistics for agents.
+- Provides a local MCP server so model agents can call viewer tools directly.
 - Compares 2-4 videos or Bayer sources at the same image coordinates.
 - Includes bad-pixel detection and public-safe synthetic chart analysis demos.
 - Estimates chart SNR, Gr/Gb difference, edge MTF, and Siemens/star MTF.
@@ -180,6 +181,25 @@ LEapsViewer.compare.findWorstRegions()
 
 This is the main contract for browser agents and test automation.
 
+## MCP Server
+
+Run a local MCP server for tool-call based agents:
+
+```bash
+npm run mcp:install-browsers
+npm run mcp
+```
+
+The server exposes tools such as `viewer_open_sample`, `viewer_get_state`, `viewer_get_pixel`, `viewer_get_roi_stats`, `viewer_select_region`, `viewer_save_current_region`, `viewer_screenshot`, and compare-loss helpers.
+
+Smoke test it with:
+
+```bash
+npm run verify:mcp
+```
+
+See `docs/MCP_SERVER.md` for client configuration and the full tool list.
+
 ## Project Layout
 
 ```text
@@ -193,15 +213,21 @@ src/
 tools/
   make_bayer_from_hdr.py
   make_bad_pixel_sample.mjs
+  make_synthetic_chart_sample.mjs
   make_video_compare_samples.py
   verify_bayer_sample.mjs
   verify_hdr_sample.mjs
+  verify_mcp_server.mjs
+
+mcp/
+  server.mjs              MCP stdio server for model-agent tool calls
 
 data/
   samples/                source sample files
   derived/                generated Bayer raws, sidecars, previews, and demo videos
 
 docs/
+  MCP_SERVER.md           MCP server setup and tool list
   PLUGIN_REGISTRATION.md  plugin authoring guide for humans and agents
 ```
 
