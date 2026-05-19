@@ -819,6 +819,7 @@ window.LEapsViewer = {
   estimateChartFeatures: estimateTe42Features,
   estimateTe42Features,
   findBadPixels,
+  observe: observeViewer,
   getState,
   setViewMode,
   setInputBitDepth,
@@ -4717,6 +4718,92 @@ function updateRegionInspectors() {
   }
 }
 
+function observeViewer(options = {}) {
+  const stateSnapshot = getState();
+  const observation = {
+    timestamp: new Date().toISOString(),
+    status: els.statusBadge.textContent,
+    state: stateSnapshot,
+    visibleImageRect: getVisibleImageRect(),
+    selectedRegion: state.selection ? { ...state.selection } : null,
+    selectedRegionStats: null,
+    selectedRegionCompareLoss: null,
+    summary: {
+      sourceName: state.sourceName,
+      mode: state.mode,
+      viewMode: state.viewMode,
+      frameKind: state.frame?.kind || null,
+      frameSize: state.frame ? { width: state.frame.width, height: state.frame.height } : null,
+      compareActive: state.compare.active,
+      markerCount: state.markers.length,
+      candidateRegionCount: state.candidateRegions.length,
+      savedRegionCount: state.savedRegions.length,
+    },
+  };
+
+  if (state.selection && state.frame) {
+    observation.selectedRegionStats = getRoiStats(state.selection);
+  }
+  if (state.selection && state.compare.active) {
+    observation.selectedRegionCompareLoss = getCompareRoiLossNoRefresh(state.selection);
+  }
+  if (options.includeScreenshot) {
+    observation.screenshotDataUrl = window.LEapsViewer.screenshot({
+      source: options.screenshotSource || "canvas",
+    });
+  }
+
+  return observation;
+}
+
+function getVisibleImageRect() {
+  const rect = els.canvas.getBoundingClientRect();
+  if (state.compare.active) {
+    const tile = state.compare.tileRects.find((item) => !item.isDiff && item.index === state.compare.gtIndex)
+      || state.compare.tileRects.find((item) => !item.isDiff);
+    if (!tile) {
+      return {
+        x: 0,
+        y: 0,
+        width: state.compare.width,
+        height: state.compare.height,
+        coordinateBasis: "image-pixel",
+        approximate: true,
+      };
+    }
+    const left = (tile.imageRect.x - tile.imageRect.x - state.compare.view.offsetX) / state.compare.view.scale;
+    const top = (tile.imageRect.y - tile.imageRect.y - state.compare.view.offsetY) / state.compare.view.scale;
+    const right = (tile.imageRect.width - state.compare.view.offsetX) / state.compare.view.scale;
+    const bottom = (tile.imageRect.height - state.compare.view.offsetY) / state.compare.view.scale;
+    const x = clamp(Math.floor(left), 0, state.compare.width);
+    const y = clamp(Math.floor(top), 0, state.compare.height);
+    const x2 = clamp(Math.ceil(right), x, state.compare.width);
+    const y2 = clamp(Math.ceil(bottom), y, state.compare.height);
+    return {
+      x,
+      y,
+      width: x2 - x,
+      height: y2 - y,
+      coordinateBasis: "image-pixel",
+      compareTile: compareLabel(tile.index),
+    };
+  }
+  if (!state.frame) return null;
+  const topLeft = screenToImage({ x: 0, y: 0 });
+  const bottomRight = screenToImage({ x: rect.width, y: rect.height });
+  const x = clamp(Math.floor(topLeft.x), 0, state.frame.width);
+  const y = clamp(Math.floor(topLeft.y), 0, state.frame.height);
+  const x2 = clamp(Math.ceil(bottomRight.x), x, state.frame.width);
+  const y2 = clamp(Math.ceil(bottomRight.y), y, state.frame.height);
+  return {
+    x,
+    y,
+    width: x2 - x,
+    height: y2 - y,
+    coordinateBasis: "image-pixel",
+  };
+}
+
 function getState() {
   return {
     mode: state.mode,
@@ -4740,6 +4827,9 @@ function getState() {
         }
       : null,
     viewport: { ...state.viewport },
+    selection: state.selection ? { ...state.selection } : null,
+    markers: state.markers.map((marker) => ({ ...marker })),
+    candidateRegions: state.candidateRegions.map((region) => ({ ...region })),
     compare: getCompareState(),
     savedRegions: getSavedRegions(),
     te42Analysis: state.te42Analysis,

@@ -21,7 +21,7 @@ try {
   await client.connect(transport);
   const tools = await client.listTools();
   const names = new Set(tools.tools.map((tool) => tool.name));
-  for (const name of ["viewer_open_sample", "viewer_get_state", "viewer_get_pixel", "viewer_get_roi_stats"]) {
+  for (const name of ["viewer_open_sample", "viewer_observe", "viewer_get_pixel", "viewer_get_roi_stats"]) {
     if (!names.has(name)) {
       throw new Error(`Missing MCP tool: ${name}`);
     }
@@ -31,6 +31,15 @@ try {
     name: "viewer_open_sample",
     arguments: { sample: "chart" },
   });
+
+  const firstObservation = await client.callTool({
+    name: "viewer_observe",
+    arguments: { historyLimit: 4 },
+  });
+  const firstObservationPayload = JSON.parse(firstObservation.content?.[0]?.text || "null");
+  if (!firstObservationPayload?.session?.id || !firstObservationPayload?.visibleImageRect) {
+    throw new Error("Observe tool did not return session and visible image rect.");
+  }
 
   const pixel = await client.callTool({
     name: "viewer_get_pixel",
@@ -57,6 +66,23 @@ try {
   const selectedPayload = JSON.parse(selected.content?.[0]?.text || "null");
   if (selectedPayload?.width !== 90) {
     throw new Error("Select region tool did not return the selected ROI.");
+  }
+
+  await client.callTool({
+    name: "viewer_add_marker",
+    arguments: { x: 385, y: 68, label: "face-like" },
+  });
+
+  const secondObservation = await client.callTool({
+    name: "viewer_observe",
+    arguments: { historyLimit: 10 },
+  });
+  const secondObservationPayload = JSON.parse(secondObservation.content?.[0]?.text || "null");
+  if (
+    secondObservationPayload?.selectedRegion?.width !== 90 ||
+    !secondObservationPayload.operationHistory?.some((entry) => entry.name === "viewer.addMarker")
+  ) {
+    throw new Error("Observe tool did not preserve selected ROI and operation history.");
   }
 
   console.log(`MCP smoke OK: ${tools.tools.length} tools registered.`);

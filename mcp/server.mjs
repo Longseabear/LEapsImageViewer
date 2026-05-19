@@ -10,6 +10,8 @@ import * as z from "zod/v4";
 const DEFAULT_VIEWER_URL = "http://127.0.0.1:5173/";
 const viewerUrl = process.env.LEAPS_VIEWER_URL || DEFAULT_VIEWER_URL;
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
+const sessionId = `leaps-viewer-${Date.now().toString(36)}`;
+const operationHistory = [];
 
 let viteProcess = null;
 let browser = null;
@@ -41,6 +43,43 @@ server.registerTool(
 );
 
 server.registerTool(
+  "viewer_observe",
+  {
+    description: "Observe the current stateful viewer session after previous tool interactions. Returns state, visible image rect, selected ROI stats/loss, and recent operation history.",
+    inputSchema: {
+      includeScreenshot: z.boolean().default(false),
+      screenshotSource: z.enum(["canvas", "rendered-image", "tone-mapped-image"]).default("canvas"),
+      historyLimit: z.number().int().min(0).max(50).default(12),
+    },
+  },
+  async ({ includeScreenshot, screenshotSource, historyLimit }) => {
+    const observation = await callViewer("observe", { includeScreenshot, screenshotSource }, { record: false });
+    const screenshot = extractScreenshot(observation);
+    const payload = withSession({
+      ...observation,
+      operationHistory: recentOperations(historyLimit),
+    });
+    const content = [
+      {
+        type: "text",
+        text: JSON.stringify(payload, null, 2),
+      },
+    ];
+    if (screenshot) {
+      content.push({
+        type: "image",
+        mimeType: screenshot.mimeType,
+        data: screenshot.data,
+      });
+    }
+    return {
+      content,
+      structuredContent: payload,
+    };
+  },
+);
+
+server.registerTool(
   "viewer_set_view_mode",
   {
     description: "Set Bayer display mode for the active image viewer.",
@@ -57,6 +96,30 @@ server.registerTool(
     },
   },
   async ({ mode }) => jsonResult(await callViewer("setViewMode", mode)),
+);
+
+server.registerTool(
+  "viewer_set_brightness",
+  {
+    description: "Set viewer brightness as a linear multiplier.",
+    inputSchema: {
+      multiplier: z.number().positive(),
+    },
+  },
+  async ({ multiplier }) => jsonResult(await callViewer("setBrightness", multiplier)),
+);
+
+server.registerTool(
+  "viewer_set_white_balance",
+  {
+    description: "Set Bayer white-balance gains for R/G/B planes.",
+    inputSchema: {
+      r: z.number().min(0).max(8),
+      g: z.number().min(0).max(8),
+      b: z.number().min(0).max(8),
+    },
+  },
+  async (gains) => jsonResult(await callViewer("setWhiteBalance", gains)),
 );
 
 server.registerTool(
@@ -109,6 +172,19 @@ server.registerTool(
     },
   },
   async ({ description, label }) => jsonResult(await callViewer("saveCurrentRegion", { description, label })),
+);
+
+server.registerTool(
+  "viewer_add_marker",
+  {
+    description: "Add an image-coordinate marker to the viewer.",
+    inputSchema: {
+      x: z.number().int(),
+      y: z.number().int(),
+      label: z.string().default(""),
+    },
+  },
+  async (marker) => jsonResult(await callViewer("addMarker", marker)),
 );
 
 server.registerTool(
@@ -189,9 +265,9 @@ async function openSample(sample) {
   return callViewer(methodBySample[sample]);
 }
 
-async function callViewer(method, argument) {
+async function callViewer(method, argument, options = {}) {
   const activePage = await ensurePage();
-  return activePage.evaluate(
+  const result = await activePage.evaluate(
     async ({ methodName, value }) => {
       const api = window.LEapsViewer;
       if (!api || typeof api[methodName] !== "function") {
@@ -201,11 +277,15 @@ async function callViewer(method, argument) {
     },
     { methodName: method, value: argument },
   );
+  if (options.record !== false) {
+    recordOperation(`viewer.${method}`, argument, summarizeResult(result));
+  }
+  return result;
 }
 
-async function callCompare(method, argument) {
+async function callCompare(method, argument, options = {}) {
   const activePage = await ensurePage();
-  return activePage.evaluate(
+  const result = await activePage.evaluate(
     async ({ methodName, value }) => {
       const api = window.LEapsViewer?.compare;
       if (!api || typeof api[methodName] !== "function") {
@@ -215,6 +295,10 @@ async function callCompare(method, argument) {
     },
     { methodName: method, value: argument },
   );
+  if (options.record !== false) {
+    recordOperation(`compare.${method}`, argument, summarizeResult(result));
+  }
+  return result;
 }
 
 async function ensurePage() {
@@ -269,14 +353,83 @@ async function urlAvailable(url) {
 }
 
 function jsonResult(value) {
+  const payload = withSession(value && typeof value === "object" ? value : { value });
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify(value, null, 2),
+        text: JSON.stringify(payload, null, 2),
       },
     ],
-    structuredContent: value && typeof value === "object" ? value : { value },
+    structuredContent: payload,
+  };
+}
+
+function withSession(value) {
+  const session = {
+    session: {
+      id: sessionId,
+      viewerUrl,
+      operationCount: operationHistory.length,
+    },
+  };
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ...session, result: value };
+  }
+  return { ...session, ...value };
+}
+
+function recordOperation(name, argument, resultSummary) {
+  operationHistory.push({
+    index: operationHistory.length + 1,
+    timestamp: new Date().toISOString(),
+    name,
+    argument: argument ?? null,
+    resultSummary,
+  });
+  if (operationHistory.length > 100) {
+    operationHistory.splice(0, operationHistory.length - 100);
+  }
+}
+
+function recentOperations(limit) {
+  return operationHistory.slice(-limit);
+}
+
+function summarizeResult(result) {
+  if (!result || typeof result !== "object") return { value: result };
+  if (result.frame || result.state) {
+    return {
+      mode: result.mode || result.state?.mode,
+      sourceName: result.sourceName || result.state?.sourceName,
+      frame: result.frame || result.state?.frame,
+      selection: result.selection || result.selectedRegion || result.state?.selection,
+    };
+  }
+  if (Number.isFinite(result.x) && Number.isFinite(result.y)) {
+    return {
+      x: result.x,
+      y: result.y,
+      width: result.width,
+      height: result.height,
+      kind: result.kind,
+      count: result.count,
+    };
+  }
+  return {
+    keys: Object.keys(result).slice(0, 12),
+  };
+}
+
+function extractScreenshot(observation) {
+  const dataUrl = observation?.screenshotDataUrl;
+  if (!dataUrl) return null;
+  delete observation.screenshotDataUrl;
+  const match = /^data:(image\/png);base64,(.+)$/u.exec(dataUrl);
+  if (!match) return null;
+  return {
+    mimeType: match[1],
+    data: match[2],
   };
 }
 

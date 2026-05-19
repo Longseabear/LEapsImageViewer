@@ -44,17 +44,34 @@ Set `LEAPS_VIEWER_HEADLESS=0` to make the Playwright browser visible while the a
 
 - `viewer_open_sample`: open `chart`, `bayer`, `bad-pixel`, `compare-video`, or `compare-bayer`.
 - `viewer_get_state`: return current viewer state.
+- `viewer_observe`: return the current stateful session observation: state, visible image rect, selected ROI stats/loss, and recent operation history.
 - `viewer_set_view_mode`: set Bayer display mode.
+- `viewer_set_brightness`: set brightness as a linear multiplier.
+- `viewer_set_white_balance`: set Bayer R/G/B white-balance gains.
 - `viewer_get_pixel`: read one image-coordinate pixel.
 - `viewer_get_roi_stats`: read ROI statistics.
 - `viewer_select_region`: select an image-coordinate ROI.
 - `viewer_save_current_region`: persist selected ROI with an optional description.
+- `viewer_add_marker`: add an image-coordinate marker.
 - `viewer_focus_selected_region`: zoom the selected ROI into view.
 - `viewer_screenshot`: return a PNG screenshot.
 - `viewer_compare_find_worst_regions`: find high-loss compare ROIs.
 - `viewer_compare_get_roi_loss`: compute compare loss for an ROI.
 
 All coordinates are image pixel coordinates: zero-based, top-left origin, `{ x, y, width, height }`, with right/bottom edges exclusive.
+
+The intended agent loop is:
+
+```text
+viewer_open_sample
+viewer_observe
+viewer_set_view_mode / viewer_select_region / viewer_set_white_balance
+viewer_observe
+viewer_get_pixel / viewer_get_roi_stats / viewer_screenshot
+viewer_save_current_region / viewer_add_marker
+```
+
+`viewer_observe` is the main stateful checkpoint. It includes a session id and recent operation history so an agent can decide what to do next without losing interaction context.
 
 ## Verify
 
@@ -63,4 +80,4 @@ npm run mcp:install-browsers
 npm run verify:mcp
 ```
 
-The smoke test starts the MCP server over stdio, opens the synthetic chart sample, reads a pixel, reads ROI stats, and selects an ROI.
+The smoke test starts the MCP server over stdio, opens the synthetic chart sample, observes the session, reads a pixel, reads ROI stats, selects an ROI, adds a marker, and verifies operation history.

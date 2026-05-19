@@ -124,6 +124,14 @@ window.LEapsViewer = {
 }
 ```
 
+MCP agents should use `viewer_observe` as the main checkpoint between actions. The intended loop is:
+
+```text
+open -> observe -> manipulate view/ROI/WB -> observe -> query pixels/stats/screenshot -> annotate/save
+```
+
+Observations should preserve session id, visible image rect, selected region details, and recent operation history so the agent can work without a human actively watching the viewer.
+
 Every interactive control should also have a stable `data-agent-action` or `data-agent-id` attribute. Prefer explicit actions such as `data-agent-action="set-view-mode:raw-mosaic"` over labels that may change during UI polish.
 
 ## Implementation Preferences

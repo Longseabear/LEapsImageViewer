@@ -192,7 +192,9 @@ npm run mcp
 
 The repository includes a project-local `.mcp.json`; keep this registration local to the checkout instead of adding it to a user-global MCP config.
 
-The server exposes tools such as `viewer_open_sample`, `viewer_get_state`, `viewer_get_pixel`, `viewer_get_roi_stats`, `viewer_select_region`, `viewer_save_current_region`, `viewer_screenshot`, and compare-loss helpers.
+The server exposes tools such as `viewer_open_sample`, `viewer_observe`, `viewer_get_state`, `viewer_get_pixel`, `viewer_get_roi_stats`, `viewer_select_region`, `viewer_save_current_region`, `viewer_add_marker`, `viewer_screenshot`, and compare-loss helpers.
+
+The intended interaction loop is `open -> observe -> manipulate -> observe -> query -> annotate/save`. `viewer_observe` returns session id, visible image rect, selected ROI stats/loss, and recent operation history so an agent can keep working without a human in the loop.
 
 Smoke test it with:
 
