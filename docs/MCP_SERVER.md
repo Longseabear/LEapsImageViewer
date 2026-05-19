@@ -73,6 +73,115 @@ viewer_save_current_region / viewer_add_marker
 
 `viewer_observe` is the main stateful checkpoint. It includes a session id and recent operation history so an agent can decide what to do next without losing interaction context.
 
+## Agent Usage Guide
+
+Treat the viewer as a stateful workbench. A good agent should alternate between actions and observations:
+
+```text
+act -> observe -> act -> observe -> query -> annotate/save
+```
+
+Do not rely only on the first screenshot or first state dump. After every visual manipulation, call `viewer_observe` again so the next decision uses the current view, ROI, stats, and history.
+
+### Minimal Inspection Loop
+
+```json
+{ "tool": "viewer_open_sample", "arguments": { "sample": "chart" } }
+```
+
+```json
+{ "tool": "viewer_observe", "arguments": { "historyLimit": 5 } }
+```
+
+```json
+{ "tool": "viewer_set_view_mode", "arguments": { "mode": "cfa-false-color" } }
+```
+
+```json
+{ "tool": "viewer_select_region", "arguments": { "x": 340, "y": 35, "width": 90, "height": 70 } }
+```
+
+```json
+{ "tool": "viewer_observe", "arguments": { "includeScreenshot": true, "historyLimit": 10 } }
+```
+
+```json
+{ "tool": "viewer_get_roi_stats", "arguments": { "x": 340, "y": 35, "width": 90, "height": 70 } }
+```
+
+```json
+{
+  "tool": "viewer_save_current_region",
+  "arguments": {
+    "label": "face-like patch",
+    "description": "Synthetic chart portrait ROI selected during agent inspection."
+  }
+}
+```
+
+### Compare Loop
+
+```json
+{ "tool": "viewer_open_sample", "arguments": { "sample": "compare-video" } }
+```
+
+```json
+{ "tool": "viewer_observe", "arguments": {} }
+```
+
+```json
+{ "tool": "viewer_compare_find_worst_regions", "arguments": { "topK": 5 } }
+```
+
+```json
+{ "tool": "viewer_select_region", "arguments": { "x": 40, "y": 30, "width": 80, "height": 60 } }
+```
+
+```json
+{ "tool": "viewer_compare_get_roi_loss", "arguments": { "x": 40, "y": 30, "width": 80, "height": 60 } }
+```
+
+### Prompt Template
+
+Use prompts that explicitly ask the agent to observe between actions:
+
+```text
+Open the chart sample. Observe the viewer. Switch to CFA false color.
+Select the most relevant ROI for the requested inspection. Observe again.
+Read ROI stats, add a marker, save the ROI with a description, and summarize the evidence.
+```
+
+For Bayer/raw analysis:
+
+```text
+Open the Bayer sample. Observe the state and visible image rect.
+Use raw-mosaic or CFA false color as needed. Inspect pixels and ROI stats.
+Save any ROI you rely on, including a description of why it matters.
+```
+
+For compare analysis:
+
+```text
+Open the compare-video sample. Observe. Find worst regions.
+Select the strongest region, observe again, compute ROI loss, and save it.
+Report metric, domain, coordinates, and whether the loss is localized or broad.
+```
+
+### What `viewer_observe` Returns
+
+`viewer_observe` returns:
+
+- `session`: session id, viewer URL, and operation count.
+- `state`: frame, view mode, Bayer settings, compare settings, selected ROI, markers, saved regions.
+- `visibleImageRect`: currently visible image-coordinate rectangle.
+- `selectedRegion`: active ROI, if any.
+- `selectedRegionStats`: raw/HDR stats for the active image ROI.
+- `selectedRegionCompareLoss`: compare loss for the active compare ROI.
+- `summary`: short state summary for quick agent decisions.
+- `operationHistory`: recent MCP actions and summaries.
+
+Use `includeScreenshot: true` only when the model needs visual inspection. Pixel, ROI, and compare queries are more deterministic and cheaper than screenshot-only reasoning.
+
 ## Verify
 
 ```bash

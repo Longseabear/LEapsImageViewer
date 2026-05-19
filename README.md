@@ -204,6 +204,53 @@ npm run verify:mcp
 
 See `docs/MCP_SERVER.md` for client configuration and the full tool list.
 
+### Agent Usage Guide
+
+Use the MCP tools as a stateful interaction loop, not as one-shot utilities. The viewer session keeps the loaded image, current view mode, selected ROI, markers, saved regions, and operation history between tool calls.
+
+Recommended loop:
+
+```text
+1. viewer_open_sample or load an image through the viewer
+2. viewer_observe
+3. Change the view: viewer_set_view_mode, viewer_set_brightness, viewer_set_white_balance
+4. viewer_observe again
+5. Select or inspect: viewer_select_region, viewer_get_pixel, viewer_get_roi_stats
+6. viewer_observe again
+7. Annotate or persist: viewer_add_marker, viewer_save_current_region
+```
+
+Example chart-inspection sequence:
+
+```text
+viewer_open_sample({ "sample": "chart" })
+viewer_observe({ "historyLimit": 5 })
+viewer_set_view_mode({ "mode": "cfa-false-color" })
+viewer_select_region({ "x": 340, "y": 35, "width": 90, "height": 70 })
+viewer_focus_selected_region({})
+viewer_observe({ "includeScreenshot": true, "historyLimit": 10 })
+viewer_get_roi_stats({ "x": 340, "y": 35, "width": 90, "height": 70 })
+viewer_add_marker({ "x": 385, "y": 68, "label": "face-like patch" })
+viewer_save_current_region({ "label": "face-like patch", "description": "Synthetic chart portrait ROI used for agent smoke tests." })
+```
+
+For compare work:
+
+```text
+viewer_open_sample({ "sample": "compare-video" })
+viewer_observe({})
+viewer_compare_find_worst_regions({ "topK": 5 })
+viewer_select_region({ "x": 40, "y": 30, "width": 80, "height": 60 })
+viewer_compare_get_roi_loss({ "x": 40, "y": 30, "width": 80, "height": 60 })
+viewer_save_current_region({ "label": "worst compare region", "description": "High-loss ROI selected by agent." })
+```
+
+When prompting an agent, ask it to alternate action and observation:
+
+```text
+Open the chart sample. Observe the viewer. Change to CFA false color, find a useful ROI, observe again, then report ROI stats and save the ROI with a short description. Use viewer_observe after each visual manipulation.
+```
+
 ## Project Layout
 
 ```text
