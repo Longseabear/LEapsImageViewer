@@ -190,6 +190,8 @@ npm run mcp:install-browsers
 npm run mcp
 ```
 
+The repository includes a project-local `.mcp.json`; keep this registration local to the checkout instead of adding it to a user-global MCP config.
+
 The server exposes tools such as `viewer_open_sample`, `viewer_get_state`, `viewer_get_pixel`, `viewer_get_roi_stats`, `viewer_select_region`, `viewer_save_current_region`, `viewer_screenshot`, and compare-loss helpers.
 
 Smoke test it with:
@@ -221,6 +223,8 @@ tools/
 
 mcp/
   server.mjs              MCP stdio server for model-agent tool calls
+
+.mcp.json                 project-local MCP registration
 
 data/
   samples/                source sample files

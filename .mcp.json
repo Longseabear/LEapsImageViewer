@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "leaps-image-viewer": {
+      "command": "node",
+      "args": ["mcp/server.mjs"],
+      "env": {
+        "LEAPS_VIEWER_URL": "http://127.0.0.1:5173/"
+      }
+    }
+  }
+}

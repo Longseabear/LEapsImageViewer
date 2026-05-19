@@ -6,21 +6,31 @@ The server launches or reuses the Vite viewer at `http://127.0.0.1:5173/`, opens
 
 ## Run
 
+This project uses a project-local `.mcp.json` in the repository root. Do not register this server in a global MCP config unless you explicitly want it available outside this checkout.
+
 ```bash
 npm ci
 npm run mcp:install-browsers
 npm run mcp
 ```
 
-MCP clients should launch the server with:
+Project-local MCP clients can launch the server from `.mcp.json`:
 
 ```json
 {
-  "command": "node",
-  "args": ["mcp/server.mjs"],
-  "cwd": "C:/Users/leap1/Documents/LEapsImageViewer"
+  "mcpServers": {
+    "leaps-image-viewer": {
+      "command": "node",
+      "args": ["mcp/server.mjs"],
+      "env": {
+        "LEAPS_VIEWER_URL": "http://127.0.0.1:5173/"
+      }
+    }
+  }
 }
 ```
+
+For clients that do not read `.mcp.json`, add the same server entry to the client's project/workspace-local MCP configuration, not the user-global configuration.
 
 If the viewer is already running somewhere else, set:
 
