@@ -153,6 +153,7 @@ Every interactive control should also have a stable `data-agent-action` or `data
 - `docs/PLUGIN_REGISTRATION.md`: how to define, register, expose, and validate image-analysis plugins for human and agent use.
 - `docs/MCP_SERVER.md`: how to run the local MCP server and which viewer tools it exposes.
 - `docs/AGENT_OPERATION_GUIDE.md`: how agents should run observe/manipulate/query loops against the viewer.
+- `docs/SKILLS.md`: how to reuse the portable `skills/leaps-image-viewer-agent/SKILL.md` instructions across Codex, Claude, and other MCP agents.
 
 ## Sample Data Layout
 

@@ -207,6 +207,7 @@ npm run verify:mcp
 
 See `docs/MCP_SERVER.md` for client configuration and the full tool list.
 See `docs/AGENT_OPERATION_GUIDE.md` for the recommended agent loop and task patterns.
+See `docs/SKILLS.md` for the portable Codex/Claude/general-agent skill package.
 
 ### Agent Usage Guide
 
@@ -300,7 +301,12 @@ data/
 docs/
   AGENT_OPERATION_GUIDE.md agent loop and usage patterns
   MCP_SERVER.md           MCP server setup and tool list
+  SKILLS.md               portable skill usage for Codex, Claude, and MCP agents
   PLUGIN_REGISTRATION.md  plugin authoring guide for humans and agents
+
+skills/
+  leaps-image-viewer-agent/
+    SKILL.md              reusable agent skill for operating the viewer
 ```
 
 ## Troubleshooting
