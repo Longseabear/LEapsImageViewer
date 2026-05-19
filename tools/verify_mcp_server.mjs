@@ -21,7 +21,16 @@ try {
   await client.connect(transport);
   const tools = await client.listTools();
   const names = new Set(tools.tools.map((tool) => tool.name));
-  for (const name of ["viewer_open_sample", "viewer_observe", "viewer_get_pixel", "viewer_get_roi_stats"]) {
+  for (const name of [
+    "viewer_open_sample",
+    "viewer_observe",
+    "viewer_get_pixel",
+    "viewer_get_roi_stats",
+    "viewer_zoom",
+    "viewer_fit",
+    "viewer_pan",
+    "viewer_set_viewport",
+  ]) {
     if (!names.has(name)) {
       throw new Error(`Missing MCP tool: ${name}`);
     }
@@ -71,6 +80,42 @@ try {
   await client.callTool({
     name: "viewer_add_marker",
     arguments: { x: 385, y: 68, label: "face-like" },
+  });
+
+  const zoomed = await client.callTool({
+    name: "viewer_zoom",
+    arguments: { factor: 1.2, centerImage: { x: 250, y: 215 } },
+  });
+  const zoomedPayload = JSON.parse(zoomed.content?.[0]?.text || "null");
+  if (!Number.isFinite(zoomedPayload?.viewport?.scale)) {
+    throw new Error("Zoom tool did not return a viewport scale.");
+  }
+
+  const panned = await client.callTool({
+    name: "viewer_pan",
+    arguments: { dx: 12, dy: -8 },
+  });
+  const pannedPayload = JSON.parse(panned.content?.[0]?.text || "null");
+  if (!Number.isFinite(pannedPayload?.viewport?.offsetX) || !Number.isFinite(pannedPayload?.viewport?.offsetY)) {
+    throw new Error("Pan tool did not return viewport offsets.");
+  }
+
+  const viewport = await client.callTool({
+    name: "viewer_set_viewport",
+    arguments: {
+      scale: pannedPayload.viewport.scale,
+      offsetX: pannedPayload.viewport.offsetX,
+      offsetY: pannedPayload.viewport.offsetY,
+    },
+  });
+  const viewportPayload = JSON.parse(viewport.content?.[0]?.text || "null");
+  if (!viewportPayload?.visibleImageRect) {
+    throw new Error("Set viewport tool did not return a visible image rect.");
+  }
+
+  await client.callTool({
+    name: "viewer_fit",
+    arguments: {},
   });
 
   const secondObservation = await client.callTool({

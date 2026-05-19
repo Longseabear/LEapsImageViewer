@@ -193,7 +193,7 @@ npm run mcp
 
 The repository includes a project-local `.mcp.json`; keep this registration local to the checkout instead of adding it to a user-global MCP config.
 
-The server exposes tools such as `viewer_open_sample`, `viewer_observe`, `viewer_get_state`, `viewer_get_pixel`, `viewer_get_roi_stats`, `viewer_select_region`, `viewer_save_current_region`, `viewer_add_marker`, `viewer_screenshot`, and compare-loss helpers.
+The server exposes tools such as `viewer_open_sample`, `viewer_observe`, `viewer_get_state`, `viewer_get_pixel`, `viewer_get_roi_stats`, `viewer_select_region`, `viewer_save_current_region`, `viewer_add_marker`, `viewer_zoom`, `viewer_fit`, `viewer_pan`, `viewer_set_viewport`, `viewer_screenshot`, and compare-loss helpers.
 
 The intended interaction loop is `open -> observe -> manipulate -> observe -> query -> annotate/save`. `viewer_observe` returns session id, visible image rect, selected ROI stats/loss, and recent operation history so an agent can keep working without a human in the loop.
 
@@ -232,6 +232,8 @@ viewer_observe({ "historyLimit": 5 })
 viewer_set_view_mode({ "mode": "cfa-false-color" })
 viewer_select_region({ "x": 340, "y": 35, "width": 90, "height": 70 })
 viewer_focus_selected_region({})
+viewer_zoom({ "factor": 1.2, "centerImage": { "x": 385, "y": 68 } })
+viewer_pan({ "dx": -80, "dy": 24 })
 viewer_observe({ "includeScreenshot": true, "historyLimit": 10 })
 viewer_get_roi_stats({ "x": 340, "y": 35, "width": 90, "height": 70 })
 viewer_add_marker({ "x": 385, "y": 68, "label": "face-like patch" })

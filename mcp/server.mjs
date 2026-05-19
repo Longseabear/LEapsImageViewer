@@ -207,6 +207,59 @@ server.registerTool(
 );
 
 server.registerTool(
+  "viewer_zoom",
+  {
+    description: "Zoom the active viewer viewport by a factor, optionally around an image or screen point.",
+    inputSchema: {
+      factor: z.number().positive().default(1.25),
+      centerImage: z.object({
+        x: z.number(),
+        y: z.number(),
+      }).optional(),
+      centerScreen: z.object({
+        x: z.number(),
+        y: z.number(),
+      }).optional(),
+    },
+  },
+  async (options) => jsonResult(await callViewer("zoom", cleanUndefined(options))),
+);
+
+server.registerTool(
+  "viewer_fit",
+  {
+    description: "Fit the active image or compare view into the viewer viewport.",
+    inputSchema: {},
+  },
+  async () => jsonResult(await callViewer("fit")),
+);
+
+server.registerTool(
+  "viewer_pan",
+  {
+    description: "Pan the active viewer viewport by screen-pixel deltas.",
+    inputSchema: {
+      dx: z.number().default(0),
+      dy: z.number().default(0),
+    },
+  },
+  async (options) => jsonResult(await callViewer("pan", options)),
+);
+
+server.registerTool(
+  "viewer_set_viewport",
+  {
+    description: "Set the active viewport directly with scale and screen-pixel offsets.",
+    inputSchema: {
+      scale: z.number().positive(),
+      offsetX: z.number(),
+      offsetY: z.number(),
+    },
+  },
+  async (viewport) => jsonResult(await callViewer("setViewport", viewport)),
+);
+
+server.registerTool(
   "viewer_screenshot",
   {
     description: "Return a PNG screenshot from the viewer canvas or rendered image.",

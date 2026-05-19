@@ -79,6 +79,14 @@ Example:
 ```
 
 ```json
+{ "tool": "viewer_focus_selected_region", "arguments": {} }
+```
+
+```json
+{ "tool": "viewer_zoom", "arguments": { "factor": 1.25, "centerImage": { "x": 385, "y": 68 } } }
+```
+
+```json
 { "tool": "viewer_observe", "arguments": { "includeScreenshot": true, "historyLimit": 10 } }
 ```
 
@@ -171,6 +179,36 @@ Avoid screenshot-only reasoning when:
 - raw Bayer values matter,
 - exact ROI stats are needed,
 - compare metrics are available.
+
+## Viewport Control Pattern
+
+Viewport tools operate on the active viewer surface. In normal image mode they update `state.viewport`; in compare mode they update `state.compare.view`.
+
+Use `viewer_zoom` for incremental inspection:
+
+```json
+{ "tool": "viewer_zoom", "arguments": { "factor": 1.5, "centerImage": { "x": 200, "y": 120 } } }
+```
+
+Use `viewer_pan` for screen-pixel movement after zoom:
+
+```json
+{ "tool": "viewer_pan", "arguments": { "dx": -120, "dy": 40 } }
+```
+
+Use `viewer_fit` when the agent is lost:
+
+```json
+{ "tool": "viewer_fit", "arguments": {} }
+```
+
+Use `viewer_set_viewport` only when replaying or restoring a known viewport:
+
+```json
+{ "tool": "viewer_set_viewport", "arguments": { "scale": 2.4, "offsetX": -180, "offsetY": 24 } }
+```
+
+After any viewport change, call `viewer_observe` before drawing conclusions. Report observations in image pixel coordinates, not screen coordinates.
 
 ## Recovery Pattern
 

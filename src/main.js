@@ -830,6 +830,10 @@ window.LEapsViewer = {
   getBayerPattern() {
     return state.bayerPattern;
   },
+  zoom: zoomViewer,
+  fit: fitViewer,
+  pan: panViewer,
+  setViewport: setViewport,
   getPixel,
   getPatch,
   getRoiStats,
@@ -3157,6 +3161,101 @@ async function focusSelectedRegion() {
     await focusRegion(state.selection);
   }
   return { ...state.selection };
+}
+
+function activeViewport() {
+  return state.compare.active ? state.compare.view : state.viewport;
+}
+
+function viewportTargetFrame() {
+  if (state.compare.active) {
+    return {
+      width: state.compare.width,
+      height: state.compare.height,
+      kind: "compare",
+    };
+  }
+  if (!state.frame) return null;
+  return {
+    width: state.frame.width,
+    height: state.frame.height,
+    kind: state.frame.kind,
+  };
+}
+
+function viewportSnapshot() {
+  return {
+    viewport: { ...activeViewport() },
+    visibleImageRect: getVisibleImageRect(),
+    frame: viewportTargetFrame(),
+  };
+}
+
+function zoomViewer(options = {}) {
+  const factor = Number(options.factor ?? 1.25);
+  if (!Number.isFinite(factor) || factor <= 0) {
+    throw new Error("zoom factor must be a positive number.");
+  }
+
+  const rect = els.canvas.getBoundingClientRect();
+  let screenPoint = {
+    x: rect.width / 2,
+    y: rect.height / 2,
+  };
+
+  if (options.centerImage) {
+    screenPoint = state.compare.active
+      ? compareImageToScreen(options.centerImage)
+      : imageToScreen(options.centerImage);
+  } else if (options.centerScreen) {
+    screenPoint = {
+      x: Number(options.centerScreen.x),
+      y: Number(options.centerScreen.y),
+    };
+  }
+
+  zoomAt(screenPoint, factor);
+  return viewportSnapshot();
+}
+
+function fitViewer() {
+  fitToCanvas();
+  draw();
+  return viewportSnapshot();
+}
+
+function panViewer(options = {}) {
+  const dx = Number(options.dx ?? 0);
+  const dy = Number(options.dy ?? 0);
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
+    throw new Error("pan dx and dy must be finite screen-pixel numbers.");
+  }
+  const view = activeViewport();
+  view.offsetX += dx;
+  view.offsetY += dy;
+  updateViewState();
+  draw();
+  return viewportSnapshot();
+}
+
+function setViewport(options = {}) {
+  const scale = Number(options.scale);
+  const offsetX = Number(options.offsetX);
+  const offsetY = Number(options.offsetY);
+  if (!Number.isFinite(scale) || scale <= 0) {
+    throw new Error("viewport scale must be a positive number.");
+  }
+  if (!Number.isFinite(offsetX) || !Number.isFinite(offsetY)) {
+    throw new Error("viewport offsetX and offsetY must be finite screen-pixel numbers.");
+  }
+
+  const view = activeViewport();
+  view.scale = clamp(scale, 0.05, 64);
+  view.offsetX = offsetX;
+  view.offsetY = offsetY;
+  updateViewState();
+  draw();
+  return viewportSnapshot();
 }
 
 async function focusCompareRegion(region) {

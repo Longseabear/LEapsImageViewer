@@ -118,6 +118,10 @@ window.LEapsViewer = {
   getRoiStats({ x, y, width, height, perPlane }),
   imageToScreen({ x, y }),
   screenToImage({ x, y }),
+  zoom({ factor, centerImage, centerScreen }),
+  fit(),
+  pan({ dx, dy }),
+  setViewport({ scale, offsetX, offsetY }),
   addMarker({ x, y, label }),
   selectRegion({ x, y, width, height }),
   screenshot(options)

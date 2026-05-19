@@ -77,6 +77,10 @@ Set `LEAPS_MCP_TRANSPORT=playwright` to bypass the bridge and use the older dire
 - `viewer_save_current_region`: persist selected ROI with an optional description.
 - `viewer_add_marker`: add an image-coordinate marker.
 - `viewer_focus_selected_region`: zoom the selected ROI into view.
+- `viewer_zoom`: zoom the active viewport by a factor, optionally around an image or screen point.
+- `viewer_fit`: fit the active image or compare view into the viewport.
+- `viewer_pan`: pan the active viewport by screen-pixel deltas.
+- `viewer_set_viewport`: set viewport scale plus screen-pixel offsets directly.
 - `viewer_screenshot`: return a PNG screenshot.
 - `viewer_compare_find_worst_regions`: find high-loss compare ROIs.
 - `viewer_compare_get_roi_loss`: compute compare loss for an ROI.
@@ -89,6 +93,8 @@ The intended agent loop is:
 viewer_open_sample
 viewer_observe
 viewer_set_view_mode / viewer_select_region / viewer_set_white_balance
+viewer_observe
+viewer_zoom / viewer_pan / viewer_fit / viewer_set_viewport
 viewer_observe
 viewer_get_pixel / viewer_get_roi_stats / viewer_screenshot
 viewer_save_current_region / viewer_add_marker
@@ -122,6 +128,14 @@ Do not rely only on the first screenshot or first state dump. After every visual
 
 ```json
 { "tool": "viewer_select_region", "arguments": { "x": 340, "y": 35, "width": 90, "height": 70 } }
+```
+
+```json
+{ "tool": "viewer_focus_selected_region", "arguments": {} }
+```
+
+```json
+{ "tool": "viewer_zoom", "arguments": { "factor": 1.2, "centerImage": { "x": 385, "y": 68 } } }
 ```
 
 ```json
