@@ -118,14 +118,29 @@ try {
     arguments: {},
   });
 
+  const screenshot = await client.callTool({
+    name: "viewer_screenshot",
+    arguments: { maxWidth: 800, maxHeight: 600 },
+  });
+  const imagePart = screenshot.content?.find((part) => part.type === "image");
+  if (!imagePart?.data || imagePart.mimeType !== "image/jpeg") {
+    throw new Error("Screenshot tool did not return the expected bounded JPEG image.");
+  }
+  const screenshotBytes = Buffer.byteLength(imagePart.data, "base64");
+  if (screenshotBytes > 2_000_000) {
+    throw new Error(`Bounded screenshot is unexpectedly large: ${screenshotBytes} bytes.`);
+  }
+
   const secondObservation = await client.callTool({
     name: "viewer_observe",
-    arguments: { historyLimit: 10 },
+    arguments: { includeScreenshot: true, screenshotMaxWidth: 800, screenshotMaxHeight: 600, historyLimit: 10 },
   });
   const secondObservationPayload = JSON.parse(secondObservation.content?.[0]?.text || "null");
+  const observationImagePart = secondObservation.content?.find((part) => part.type === "image");
   if (
     secondObservationPayload?.selectedRegion?.width !== 90 ||
-    !secondObservationPayload.operationHistory?.some((entry) => entry.name === "viewer.addMarker")
+    !secondObservationPayload.operationHistory?.some((entry) => entry.name === "viewer.addMarker") ||
+    observationImagePart?.mimeType !== "image/jpeg"
   ) {
     throw new Error("Observe tool did not preserve selected ROI and operation history.");
   }

@@ -180,6 +180,16 @@ Avoid screenshot-only reasoning when:
 - exact ROI stats are needed,
 - compare metrics are available.
 
+MCP image payloads can hit client size limits. Prefer bounded JPEG screenshots unless a task explicitly needs a full-resolution PNG:
+
+```json
+{ "tool": "viewer_observe", "arguments": { "includeScreenshot": true, "screenshotMaxWidth": 1600, "screenshotMaxHeight": 1200, "screenshotFormat": "jpeg", "screenshotQuality": 0.85 } }
+```
+
+```json
+{ "tool": "viewer_screenshot", "arguments": { "maxWidth": 1600, "maxHeight": 1200, "format": "jpeg", "quality": 0.85 } }
+```
+
 ## Viewport Control Pattern
 
 Viewport tools operate on the active viewer surface. In normal image mode they update `state.viewport`; in compare mode they update `state.compare.view`.

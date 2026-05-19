@@ -59,11 +59,30 @@ server.registerTool(
     inputSchema: {
       includeScreenshot: z.boolean().default(false),
       screenshotSource: z.enum(["canvas", "rendered-image", "tone-mapped-image"]).default("canvas"),
+      screenshotFormat: z.enum(["png", "jpeg", "webp"]).default("jpeg"),
+      screenshotQuality: z.number().min(0.1).max(1).default(0.85),
+      screenshotMaxWidth: z.number().int().positive().default(1600),
+      screenshotMaxHeight: z.number().int().positive().default(1200),
       historyLimit: z.number().int().min(0).max(50).default(12),
     },
   },
-  async ({ includeScreenshot, screenshotSource, historyLimit }) => {
-    const observation = await callViewer("observe", { includeScreenshot, screenshotSource }, { record: false });
+  async ({
+    includeScreenshot,
+    screenshotSource,
+    screenshotFormat,
+    screenshotQuality,
+    screenshotMaxWidth,
+    screenshotMaxHeight,
+    historyLimit,
+  }) => {
+    const observation = await callViewer("observe", {
+      includeScreenshot,
+      screenshotSource,
+      screenshotFormat,
+      screenshotQuality,
+      screenshotMaxWidth,
+      screenshotMaxHeight,
+    }, { record: false });
     const screenshot = extractScreenshot(observation);
     const payload = withSession({
       ...observation,
@@ -262,16 +281,20 @@ server.registerTool(
 server.registerTool(
   "viewer_screenshot",
   {
-    description: "Return a PNG screenshot from the viewer canvas or rendered image.",
+    description: "Return a size-bounded screenshot from the viewer canvas or rendered image.",
     inputSchema: {
       source: z.enum(["canvas", "rendered-image", "tone-mapped-image"]).default("canvas"),
+      format: z.enum(["png", "jpeg", "webp"]).default("jpeg"),
+      quality: z.number().min(0.1).max(1).default(0.85),
+      maxWidth: z.number().int().positive().default(1600),
+      maxHeight: z.number().int().positive().default(1200),
     },
   },
-  async ({ source }) => {
-    const dataUrl = await callViewer("screenshot", { source });
-    const match = /^data:(image\/png);base64,(.+)$/u.exec(dataUrl);
+  async ({ source, format, quality, maxWidth, maxHeight }) => {
+    const dataUrl = await callViewer("screenshot", { source, format, quality, maxWidth, maxHeight });
+    const match = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/u.exec(dataUrl);
     if (!match) {
-      throw new Error("Viewer did not return a PNG data URL.");
+      throw new Error("Viewer did not return a supported image data URL.");
     }
     return {
       content: [
@@ -636,7 +659,7 @@ function extractScreenshot(observation) {
   const dataUrl = observation?.screenshotDataUrl;
   if (!dataUrl) return null;
   delete observation.screenshotDataUrl;
-  const match = /^data:(image\/png);base64,(.+)$/u.exec(dataUrl);
+  const match = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/u.exec(dataUrl);
   if (!match) return null;
   return {
     mimeType: match[1],

@@ -81,7 +81,7 @@ Set `LEAPS_MCP_TRANSPORT=playwright` to bypass the bridge and use the older dire
 - `viewer_fit`: fit the active image or compare view into the viewport.
 - `viewer_pan`: pan the active viewport by screen-pixel deltas.
 - `viewer_set_viewport`: set viewport scale plus screen-pixel offsets directly.
-- `viewer_screenshot`: return a PNG screenshot.
+- `viewer_screenshot`: return a size-bounded screenshot. Defaults to JPEG, max 1600x1200, to avoid oversized MCP responses.
 - `viewer_compare_find_worst_regions`: find high-loss compare ROIs.
 - `viewer_compare_get_roi_loss`: compute compare loss for an ROI.
 
@@ -218,6 +218,18 @@ Report metric, domain, coordinates, and whether the loss is localized or broad.
 - `operationHistory`: recent MCP actions and summaries.
 
 Use `includeScreenshot: true` only when the model needs visual inspection. Pixel, ROI, and compare queries are more deterministic and cheaper than screenshot-only reasoning.
+
+Screenshot responses are sent through MCP as image content. To avoid MCP request/response size limits, screenshot tools default to bounded JPEG output:
+
+```json
+{ "tool": "viewer_screenshot", "arguments": { "maxWidth": 1600, "maxHeight": 1200, "format": "jpeg", "quality": 0.85 } }
+```
+
+Use full-resolution PNG only when the client can accept large payloads:
+
+```json
+{ "tool": "viewer_screenshot", "arguments": { "format": "png", "maxWidth": 4096, "maxHeight": 4096 } }
+```
 
 For fuller task guidance, including Bayer/raw analysis, compare analysis, screenshot use, and recovery patterns, see `docs/AGENT_OPERATION_GUIDE.md`.
 

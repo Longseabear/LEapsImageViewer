@@ -124,6 +124,14 @@ viewer_compare_get_roi_loss
 
 When using screenshots, request them through `viewer_observe({ includeScreenshot: true })` when possible so the image is paired with state, viewport, visible image rect, selected ROI, and operation history.
 
+Keep screenshots bounded so MCP payloads do not exceed client limits:
+
+```json
+{ "tool": "viewer_observe", "arguments": { "includeScreenshot": true, "screenshotMaxWidth": 1600, "screenshotMaxHeight": 1200, "screenshotFormat": "jpeg", "screenshotQuality": 0.85 } }
+```
+
+Use full-resolution PNG only when the user explicitly needs it and the MCP client can accept large image payloads.
+
 ## Viewport Control
 
 Use viewport tools to move around without direct browser UI automation.

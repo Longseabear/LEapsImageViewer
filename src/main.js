@@ -882,10 +882,10 @@ window.LEapsViewer = {
   clearSavedRegions,
   focusSavedRegion,
   screenshot(options = {}) {
-    if (options.source === "tone-mapped-image" || options.source === "rendered-image") {
-      return imageCanvas.toDataURL("image/png");
-    }
-    return els.canvas.toDataURL("image/png");
+    const sourceCanvas = options.source === "tone-mapped-image" || options.source === "rendered-image"
+      ? imageCanvas
+      : els.canvas;
+    return canvasToScreenshotDataUrl(sourceCanvas, options);
   },
 };
 
@@ -4850,10 +4850,49 @@ function observeViewer(options = {}) {
   if (options.includeScreenshot) {
     observation.screenshotDataUrl = window.LEapsViewer.screenshot({
       source: options.screenshotSource || "canvas",
+      format: options.screenshotFormat || options.format,
+      quality: options.screenshotQuality ?? options.quality,
+      maxWidth: options.screenshotMaxWidth ?? options.maxWidth,
+      maxHeight: options.screenshotMaxHeight ?? options.maxHeight,
     });
   }
 
   return observation;
+}
+
+function canvasToScreenshotDataUrl(sourceCanvas, options = {}) {
+  const format = screenshotMimeType(options.format);
+  const quality = clamp(Number(options.quality ?? 0.85), 0.1, 1);
+  const maxWidth = Number(options.maxWidth ?? 0);
+  const maxHeight = Number(options.maxHeight ?? 0);
+  const sourceWidth = sourceCanvas.width;
+  const sourceHeight = sourceCanvas.height;
+  const scale = screenshotScale(sourceWidth, sourceHeight, maxWidth, maxHeight);
+
+  if (scale >= 1) {
+    return sourceCanvas.toDataURL(format, quality);
+  }
+
+  const output = document.createElement("canvas");
+  output.width = Math.max(1, Math.round(sourceWidth * scale));
+  output.height = Math.max(1, Math.round(sourceHeight * scale));
+  const outputContext = output.getContext("2d");
+  outputContext.imageSmoothingEnabled = true;
+  outputContext.imageSmoothingQuality = "high";
+  outputContext.drawImage(sourceCanvas, 0, 0, output.width, output.height);
+  return output.toDataURL(format, quality);
+}
+
+function screenshotMimeType(format) {
+  if (format === "jpeg" || format === "jpg") return "image/jpeg";
+  if (format === "webp") return "image/webp";
+  return "image/png";
+}
+
+function screenshotScale(width, height, maxWidth, maxHeight) {
+  const widthScale = Number.isFinite(maxWidth) && maxWidth > 0 ? maxWidth / width : 1;
+  const heightScale = Number.isFinite(maxHeight) && maxHeight > 0 ? maxHeight / height : 1;
+  return Math.min(1, widthScale, heightScale);
 }
 
 function connectViewerBridge() {
